@@ -1,0 +1,132 @@
+/* Custom styles beyond Tailwind */
+
+/* Match result indicators */
+.result-win {
+    color: #22c55e;
+    font-weight: 600;
+  }
+  
+  .result-loss {
+    color: #ef4444;
+    font-weight: 600;
+  }
+  
+  /* Table row alternating colors */
+  table tbody tr:nth-child(even) {
+    background-color: #f9fafb;
+  }
+  
+  table tbody tr:hover {
+    background-color: #f3f4f6;
+  }
+  
+  /* Card hover effect */
+  .bg-white.rounded-lg.shadow-md {
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .bg-white.rounded-lg.shadow-md:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Loading spinner */
+  .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* MMR trend indicators */
+  .mmr-up {
+    color: #22c55e;
+  }
+  
+  .mmr-down {
+    color: #ef4444;
+  }
+  
+  /* Playlist names */
+  .playlist-1v1 {
+    color: #3b82f6;
+  }
+  
+  .playlist-2v2 {
+    color: #8b5cf6;
+  }
+  
+  .playlist-3v3 {
+    color: #ec4899;
+  }
+  
+  .playlist-extra {
+    color: #f59e0b;
+  }
+  
+  /* Button hover effect */
+  button {
+    transition: all 0.2s;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    
+    th, td {
+      padding: 0.5rem;
+    }
+  }
+  
+  /* Tooltip styles */
+  .tooltip {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .tooltip .tooltip-text {
+    visibility: hidden;
+    width: 120px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  .tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  /* Match cards */
+  .match-card {
+    border-left: 4px solid #ccc;
+  }
+  
+  .match-card.win {
+    border-left-color: #22c55e;
+  }
+  
+  .match-card.loss {
+    border-left-color: #ef4444;
+  }

@@ -1,7 +1,5 @@
 {
   "dependencies": [
-    "nlohmann-json",
-    "websocketpp",
-    "boost"
+    "nlohmann-json"
   ]
 }

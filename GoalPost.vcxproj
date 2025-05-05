@@ -88,6 +88,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File update_version.ps1 "./version.h"</Command>
@@ -114,6 +115,7 @@
     <ClCompile Include="GuiBase.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\Downloads\httplib.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />

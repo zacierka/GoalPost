@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rocket League Stats Tracker</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <nav class="bg-blue-600 text-white p-4 shadow-md">
+    <div class="container mx-auto flex justify-between items-center">
+      <h1 class="text-2xl font-bold flex items-center">
+        <i class="fas fa-car-side mr-2"></i> Rocket League Stats Tracker
+      </h1>
+      <div class="space-x-4">
+        <button id="refreshButton" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md">
+          <i class="fas fa-sync-alt mr-1"></i> Refresh
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <!-- Stats Cards -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-gray-500 text-sm font-semibold mb-1">Total Matches</h3>
+        <p id="totalMatches" class="text-3xl font-bold">0</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-gray-500 text-sm font-semibold mb-1">Win Rate</h3>
+        <p id="winRate" class="text-3xl font-bold">0%</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-gray-500 text-sm font-semibold mb-1">Goals per Match</h3>
+        <p id="goalsPerMatch" class="text-3xl font-bold">0</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-gray-500 text-sm font-semibold mb-1">Current MMR</h3>
+        <p id="currentMmr" class="text-3xl font-bold">0</p>
+      </div>
+    </div>
+
+    <!-- Player Search -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-xl font-bold mb-4">Player Stats</h2>
+      <div class="flex mb-4">
+        <input type="text" id="playerSearchInput" placeholder="Enter player name" class="flex-grow p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button id="playerSearchButton" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-r-md">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+      <div id="playerStatsContainer" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h3 id="playerStatsName" class="text-xl font-bold"></h3>
+          <div class="text-gray-600">
+            <span id="playerMatchesPlayed">0</span> matches played
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-gray-500 text-sm font-semibold mb-2">Performance</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Win Rate:</span>
+                <span id="playerWinRate" class="font-bold">0%</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Wins:</span>
+                <span id="playerWins" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Losses:</span>
+                <span id="playerLosses" class="font-bold">0</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-gray-500 text-sm font-semibold mb-2">Averages</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Goals:</span>
+                <span id="playerAvgGoals" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Assists:</span>
+                <span id="playerAvgAssists" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Saves:</span>
+                <span id="playerAvgSaves" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Shots:</span>
+                <span id="playerAvgShots" class="font-bold">0</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-gray-500 text-sm font-semibold mb-2">Totals</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Score:</span>
+                <span id="playerTotalScore" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Goals:</span>
+                <span id="playerTotalGoals" class="font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Demos:</span>
+                <span id="playerTotalDemos" class="font-bold">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mb-8">
+          <h4 class="text-lg font-semibold mb-4">MMR History</h4>
+          <div class="bg-white border rounded-md p-4 h-64">
+            <canvas id="mmrChart"></canvas>
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="text-lg font-semibold mb-4">Recent Matches</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full table-auto border-collapse">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="p-3 text-left">Date</th>
+                  <th class="p-3 text-left">Result</th>
+                  <th class="p-3 text-left">Score</th>
+                  <th class="p-3 text-center">Goals</th>
+                  <th class="p-3 text-center">Assists</th>
+                  <th class="p-3 text-center">Saves</th>
+                  <th class="p-3 text-center">Shots</th>
+                  <th class="p-3 text-center">MMR</th>
+                </tr>
+              </thead>
+              <tbody id="playerMatchesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="playerNotFound" class="hidden">
+        <p class="text-red-500">Player not found. Please check the name and try again.</p>
+      </div>
+    </div>
+
+    <!-- Recent Matches -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-xl font-bold mb-4">Recent Matches</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full table-auto border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="p-3 text-left">Date</th>
+              <th class="p-3 text-left">Playlist</th>
+              <th class="p-3 text-left">Result</th>
+              <th class="p-3 text-left">Score</th>
+              <th class="p-3 text-center">Players</th>
+            </tr>
+          </thead>
+          <tbody id="recentMatchesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Players Leaderboard -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold mb-4">Players Leaderboard</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full table-auto border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="p-3 text-left">Player</th>
+              <th class="p-3 text-center">Matches</th>
+              <th class="p-3 text-center">Win Rate</th>
+              <th class="p-3 text-center">Goals</th>
+              <th class="p-3 text-center">Assists</th>
+              <th class="p-3 text-center">Saves</th>
+              <th class="p-3 text-center">MMR</th>
+            </tr>
+          </thead>
+          <tbody id="playersLeaderboardTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-gray-800 text-white p-6 mt-8">
+    <div class="container mx-auto">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <h3 class="text-xl font-bold">GoalPost</h3>
+          <p class="text-gray-400">Track your competitive matches</p>
+        </div>
+        <div>
+          <p class="text-gray-400">&copy; 2025 GoalPost</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
