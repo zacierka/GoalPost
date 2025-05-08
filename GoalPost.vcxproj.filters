@@ -140,15 +140,6 @@
     <ClInclude Include="GuiBase.h">
       <Filter>Plugin\header</Filter>
     </ClInclude>
-    <ClInclude Include="Game.h">
-      <Filter>Plugin\header</Filter>
-    </ClInclude>
-    <ClInclude Include="Team.h">
-      <Filter>Plugin\header</Filter>
-    </ClInclude>
-    <ClInclude Include="Player.h">
-      <Filter>Plugin\header</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GoalPost.rc">

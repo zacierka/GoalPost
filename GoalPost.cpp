@@ -5,10 +5,10 @@
 #include "bakkesmod/wrappers/GameEvent/TutorialWrapper.h"
 #include "bakkesmod/wrappers/MMRWrapper.h"
 #include "bakkesmod/wrappers/http/HttpWrapper.h"
+#include "bakkesmod/utilities/LoadoutUtilities.h" // used to get the car data
 #include "bakkesmod/wrappers/cvarmanagerwrapper.h"
 #include <chrono>
-// #define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
+#include <cpr/cpr.h>
 
 #define ON_ALL_TEAMS_CREATED "Function TAGame.GameEvent_Soccar_TA.OnAllTeamsCreated"
 #define ON_OVERTIME_UPDATED "Function TAGame.GameEvent_Soccar_TA.OnOvertimeUpdated"
@@ -23,12 +23,11 @@ void GoalPost::onLoad()
 	_globalCvarManager = cvarManager;
 	_globalGameWrapper = gameWrapper;
 	// Register CVars for configuration
-	cvarManager->registerCvar("goalpost_endpoint", "localhost", "Endpoint URL for match stats"); // on cvar changed, "ping" website. if fail disable POST.
+	cvarManager->registerCvar("goalpost_endpoint", "rl.eboyclique.com:3000", "Endpoint URL for match stats"); // on cvar changed, "ping" website. if fail disable POST.
 	cvarManager->registerCvar("goalpost_enabled", "1", "Enable/disable match stats collection", true, true, 0, true, 1);
 
 	gameWrapper->HookEventPost(ON_ALL_TEAMS_CREATED,
 		[this](std::string eventName) {
-			LOG("@@@@@ Match started @@@@@");
 			resetFlags();
 		});
 
@@ -39,19 +38,15 @@ void GoalPost::onLoad()
 	gameWrapper->HookEventPost(ON_MATCH_ENDED,
 		[this](std::string eventName) {
 			if (cvarManager->getCvar("goalpost_enabled").getBoolValue()) {
-				LOG("@@@@@ Match ended - Match stats collection enabled @@@@@");
 				collectAndSendMatchStats();
-			}
-			else {
-				LOG("@@@@@ Match ended - Match stats collection disabled @@@@@");
 			}
 		});
 
 	cvarManager->registerNotifier("goalpost_test", [this](std::vector<std::string> params) {
-		testStats();
-		}, "Send test match stats to the configured endpoint", PERMISSION_ALL);
+		ping();
+		}, "Send PING to the configured endpoint", PERMISSION_ALL);
 
-	LOG("Goal Websocket plugin loaded!");
+	LOG("GoalPost plugin loaded!");
 }
 void GoalPost::collectAndSendMatchStats()
 {
@@ -88,8 +83,9 @@ void GoalPost::collectAndSendMatchStats()
 	int orangeTeamScore = server.GetTeams().Get(1).GetScore();
 
 	PriWrapper localPlayer = server.GetLocalPrimaryPlayer().GetPRI();
-
 	MMRWrapper mw = gameWrapper->GetMMRWrapper();
+	float mmr = mw.GetPlayerMMR(localPlayer.GetUniqueIdWrapper(), localPlayer.GetPlatform());
+
 	json player = {
 		{ "goals" , localPlayer.GetMatchGoals() },
 		{ "uniqueId" , localPlayer.GetUniqueIdWrapper().GetIdString()},
@@ -100,6 +96,7 @@ void GoalPost::collectAndSendMatchStats()
 		{ "assists", localPlayer.GetMatchAssists() },
 		{ "touches" , localPlayer.GetBallTouches() },
 		{ "teamNum" , localPlayer.GetTeamNum() },
+		{ "mmr", mmr },
 		{ "platform" , getPlatformString(localPlayer.GetPlatform())}
 	};
 
@@ -121,48 +118,35 @@ void GoalPost::collectAndSendMatchStats()
 		{ "localPlayer", player }
 	};
 
-	// for each player list
+	std::string serializedData = game_data.dump();
 
-	sendStats(game_data.dump());
+	sendStats(serializedData);
 
 }
 
-void GoalPost::testStats()
+void GoalPost::ping()
 {
-	json player = {
-		{ "goals" , 5 },
-		{ "uniqueId" , "Steam|76561198040749114|0"},
-		{ "name" , "Mikey" },
-		{ "shots" , 3 },
-		{ "demos" , 5 },
-		{ "saves" , 1 },
-		{ "assists", 12 },
-		{ "touches" ,35 },
-		{ "teamNum" ,0 },
-		{ "platform" , "Steam"}
-	};
+	LOG("pinging endpoint...");
+	std::string url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
+	std::thread([url]() {
+		try {
+			cpr::Response r = cpr::Get(cpr::Url{ url });
 
-	const auto now = std::chrono::system_clock::now();
-	std::string datetime = std::format("{:%FT%TZ}", now);
+			if (r.status_code != 200)
+			{
+				LOG("[FAILED] Cannot find endpoint: {}", url);
+			}
+			else
+			{
+				LOG("[SUCCESS] Response code: {}", r.status_code);
+			}
+		}
+		catch (const std::exception& e)
+		{
+			LOG("[ERROR] Could not send ping {}", e.what());
+		}
 
-	// needs MMR, inParty
-	json game_data = {
-		{ "matchId" , "159ADDCE11F029512CC831802D90E774" },
-		{ "datetime" , datetime },
-		{ "map" , "woods_p"},
-		{ "ffTeam" , 1 },
-		{ "gamemode", "Standard (Ranked)"},
-		{ "blueTeamScore" , 0 },
-		{ "orangeTeamScore" , 1 },
-		{ "isWinner" , true },
-		{ "isOvertime" , false },
-		{ "score" , 1},
-		{ "localPlayer", player }
-	};
-
-	// for each player list
-
-	sendStats(game_data.dump());
+		}).detach();
 }
 
 bool GoalPost::isFF(ServerWrapper server)
@@ -211,22 +195,26 @@ void GoalPost::resetFlags()
 	isOvertime = false;
 }
 
-void GoalPost::sendStats(std::string data)
+void GoalPost::sendStats(std::string& data)
 {
 	LOG("Sending stats");
-	std::thread([=]() { // issue, runs on main bakkesmod thead. If there is an error here, the game hard crashes.
-		std::string url = ""; // alternative is to run on its own thread, passing in the data, endpoint.
-		try { // possibly move the cli to onLoad, so that we can use it to ping the server? 
-			url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
-			httplib::Client cli(url, 3000);
+	std::string url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
+	std::thread([url, data]() {
+		try {
+			
 
-			auto res = cli.Post("/api/matchstats", data, "application/json");
+			cpr::Response r = cpr::Post(
+				cpr::Url{ url + "/api/matchstats" },
+				cpr::Header{ {"Content-Type", "application/json"} },
+				cpr::Body{ data }
+			);
 
-			if (res && res->status == 200) {
-				LOG("Sent {} - Success", res->status);
+			if (r.error) {
+				// Log error or handle it
+				LOG("Error sending stats: {}", r.error.message);
 			}
 			else {
-				LOG("Sent {} - Unreachable", res->status);
+				LOG("Response code: {}", r.status_code);
 			}
 		}
 		catch (...)

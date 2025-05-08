@@ -22,12 +22,11 @@ private:
 	std::string getPlaylistString(int id);
 
 	void collectAndSendMatchStats();
-	void sendStats(std::string data);
-	void testStats();
+	void sendStats(std::string& data);
+	void ping();
 	void resetFlags();
 	void onOvertime();
 	std::string getPlatformString(OnlinePlatform platform);
-	std::string getCarString();
 	bool isFF(ServerWrapper server);
 	bool isOvertime = false;
 public:
