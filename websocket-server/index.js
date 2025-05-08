@@ -7,7 +7,7 @@ const connectToMongo = require('./db');
 const Match = require('./models/Match');
 // Initialize app
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.HTTP_PORT || 3000;
 
 // Middleware
 app.use(morgan('dev'));
@@ -53,7 +53,6 @@ app.get('/', (req, res) => {
 
 // Start server
 async function startServer() {
-
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
     });

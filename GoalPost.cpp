@@ -23,7 +23,7 @@ void GoalPost::onLoad()
 	_globalCvarManager = cvarManager;
 	_globalGameWrapper = gameWrapper;
 	// Register CVars for configuration
-	cvarManager->registerCvar("goalpost_endpoint", "localhost", "Endpoint URL for match stats");
+	cvarManager->registerCvar("goalpost_endpoint", "localhost", "Endpoint URL for match stats"); // on cvar changed, "ping" website. if fail disable POST.
 	cvarManager->registerCvar("goalpost_enabled", "1", "Enable/disable match stats collection", true, true, 0, true, 1);
 
 	gameWrapper->HookEventPost(ON_ALL_TEAMS_CREATED,
@@ -214,9 +214,9 @@ void GoalPost::resetFlags()
 void GoalPost::sendStats(std::string data)
 {
 	LOG("Sending stats");
-	std::thread([=]() {
-		std::string url = "";
-		try {
+	std::thread([=]() { // issue, runs on main bakkesmod thead. If there is an error here, the game hard crashes.
+		std::string url = ""; // alternative is to run on its own thread, passing in the data, endpoint.
+		try { // possibly move the cli to onLoad, so that we can use it to ping the server? 
 			url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
 			httplib::Client cli(url, 3000);
 
