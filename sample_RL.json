@@ -1,0 +1,23 @@
+{
+  "blueTeamScore": 1,
+  "datetime" : "",
+  "gamemode": "Standard (Ranked)",
+  "isOT": false,
+  "isWinner": true,
+  "map": "UF_Day_P",
+  "matchId": "1233C1DS2FSS7RTJK28",
+  "orangeTeamScore": 2,
+  "isForfeit": true,
+  "player": {
+    "assists": 1,
+    "demos": 0,
+    "goals": 0,
+    "name": "",
+    "platform": "",
+    "saves": 3,
+    "shots": 0,
+    "teamNum": 1,
+    "touches": 28,
+    "uniqueId": "Steam|123456789|0"
+  }
+}
