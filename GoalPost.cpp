@@ -132,13 +132,13 @@ void GoalPost::ping()
 		try {
 			cpr::Response r = cpr::Get(cpr::Url{ url });
 
-			if (r.status_code != 200)
+			if (r.status_code == 201)
 			{
-				LOG("[FAILED] Cannot find endpoint: {}", url);
+				LOG("[SUCCESS] Response code: {}", r.status_code);
 			}
 			else
 			{
-				LOG("[SUCCESS] Response code: {}", r.status_code);
+				LOG("[FAILED] Cannot find endpoint: {}", url);
 			}
 		}
 		catch (const std::exception& e)
@@ -202,24 +202,24 @@ void GoalPost::sendStats(std::string& data)
 	std::thread([url, data]() {
 		try {
 			
-
 			cpr::Response r = cpr::Post(
 				cpr::Url{ url + "/api/matchstats" },
 				cpr::Header{ {"Content-Type", "application/json"} },
 				cpr::Body{ data }
 			);
 
-			if (r.error) {
-				// Log error or handle it
-				LOG("Error sending stats: {}", r.error.message);
+			if (r.status_code == 201)
+			{
+				LOG("[SUCCESS] Response code: {}", r.status_code);
 			}
-			else {
-				LOG("Response code: {}", r.status_code);
+			else
+			{
+				LOG("[FAILED] Cannot find endpoint: {}", url);
 			}
 		}
 		catch (...)
 		{
-			LOG("Error... could not send to endpoint {}", url);
+			LOG("[ERROR] Could not send to endpoint {}", url);
 		}
 
 		}).detach();
@@ -290,5 +290,5 @@ void GoalPost::onUnload()
 	gameWrapper->UnhookEvent(ON_MATCH_ENDED);
 	gameWrapper->UnhookEvent(ON_OVERTIME_UPDATED);
 
-	LOG("Plugin Unloaded");
+	LOG("GoalPost Plugin Unloaded");
 }

@@ -37,7 +37,7 @@ app.post('/api/matchstats', async (req, res) => {
             res.status(400).json({ error: 'Failed to save match' });
         }
 
-        res.status(200).json({ success: true, message: 'Match stats saved successfully' });
+        res.status(201).json({ success: true, message: 'Match stats saved successfully' });
     } catch (err) {
         console.error('Error processing match stats:', err);
         res.status(500).json({ error: 'Internal server error' });
