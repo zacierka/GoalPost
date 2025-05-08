@@ -9,6 +9,7 @@ const localPlayerSchema = new mongoose.Schema({
   saves: Number,
   shots: Number,
   teamNum: Number,
+  mmr: Number,
   touches: Number,
   uniqueId: String
 });
