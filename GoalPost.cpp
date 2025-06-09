@@ -13,11 +13,12 @@
 #define ON_ALL_TEAMS_CREATED "Function TAGame.GameEvent_Soccar_TA.OnAllTeamsCreated"
 #define ON_OVERTIME_UPDATED "Function TAGame.GameEvent_Soccar_TA.OnOvertimeUpdated"
 #define ON_MATCH_ENDED "Function TAGame.GameEvent_Soccar_TA.OnMatchEnded"
-
+#define ON_MATCH_WINNER_SET "Function TAGame.GameEvent_Soccar_TA.OnMatchWinnerSet"
 BAKKESMOD_PLUGIN(GoalPost, "GoalPost", plugin_version, PLUGINTYPE_FREEPLAY)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 std::shared_ptr<GameWrapper> _globalGameWrapper;
+
 void GoalPost::onLoad()
 {
 	_globalCvarManager = cvarManager;
@@ -35,104 +36,101 @@ void GoalPost::onLoad()
 		[this](std::string eventName) {
 			onOvertime();
 		});
-	gameWrapper->HookEventPost(ON_MATCH_ENDED,
+	gameWrapper->HookEventPost(ON_MATCH_WINNER_SET,
 		[this](std::string eventName) {
 			if (cvarManager->getCvar("goalpost_enabled").getBoolValue()) {
 				collectAndSendMatchStats();
 			}
 		});
 
-	cvarManager->registerNotifier("goalpost_test", [this](std::vector<std::string> params) {
+	cvarManager->registerNotifier("goalpost_ping", [this](std::vector<std::string> params) {
 		ping();
 		}, "Send PING to the configured endpoint", PERMISSION_ALL);
 
-	LOG("GoalPost plugin loaded!");
+	LOG("[GOALPOST] GoalPost plugin v{} loaded!", plugin_version);
 }
+
+
 void GoalPost::collectAndSendMatchStats()
 {
 	ServerWrapper server = gameWrapper->GetOnlineGame();
 	if (!server) {
-		LOG("Not in an online game!");
+		LOG("[GOALPOST] Not in an online game!");
 		return;
 	}
 
 	// Check if it's a competitive match
 	if (!isCompetitiveMatch(server)) {
-		LOG("Not a competitive match, skipping stats collection");
+		LOG("[GOALPOST] Not a competitive match, skipping stats collection");
 		return;
 	}
-
-	LOG("Collecting match stats...");
-
+	LOG("[GOALPOST] Collecting match stats...");
 
 	auto playlist = server.GetPlaylist();
 	if (!playlist)
 	{
-		LOG("Null playlist");
+		LOG("[GOALPOST] Null playlist");
 		return;
 	}
 
-
-	// Check if playlist is competitive
-	int playlistId = playlist.GetPlaylistId();
-
-	std::string matchId = server.GetMatchGUID();
-	bool isWinner = isLocalPlayerWinner(server);
-	std::string gamemode = getPlaylistString(playlistId);
-	int blueTeamScore = server.GetTeams().Get(0).GetScore();
-	int orangeTeamScore = server.GetTeams().Get(1).GetScore();
-
 	PriWrapper localPlayer = server.GetLocalPrimaryPlayer().GetPRI();
 	MMRWrapper mw = gameWrapper->GetMMRWrapper();
-	float mmr = mw.GetPlayerMMR(localPlayer.GetUniqueIdWrapper(), localPlayer.GetPlatform());
 
-	json player = {
-		{ "goals" , localPlayer.GetMatchGoals() },
-		{ "uniqueId" , localPlayer.GetUniqueIdWrapper().GetIdString()},
-		{ "name" , localPlayer.GetPlayerName().ToString()},
-		{ "shots" , localPlayer.GetMatchShots() },
-		{ "demos" , localPlayer.GetKills() },
-		{ "saves" , localPlayer.GetMatchSaves() },
-		{ "assists", localPlayer.GetMatchAssists() },
-		{ "touches" , localPlayer.GetBallTouches() },
-		{ "teamNum" , localPlayer.GetTeamNum() },
-		{ "mmr", mmr },
-		{ "platform" , getPlatformString(localPlayer.GetPlatform())}
-	};
+	int playlistId = playlist.GetPlaylistId();
+	float mmr = mw.GetPlayerMMR(localPlayer.GetUniqueIdWrapper(), playlistId);
+	
 
 	const auto now = std::chrono::system_clock::now();
 	std::string datetime = std::format("{:%FT%TZ}", now);
-	
-	// needs MMR, inParty
-	json game_data = {
-		{ "matchId" , matchId },
-		{ "datetime" , datetime },
-		{ "map" , gameWrapper->GetCurrentMap() },
-		{ "ffTeam" , server.GetbForfeit() },
-		{ "gamemode", gamemode },
-		{ "blueTeamScore" , blueTeamScore },
-		{ "orangeTeamScore" , orangeTeamScore },
-		{ "isWinner" , isWinner },
-		{ "isOvertime" , isOvertime },
-		{ "score" , server.GetTotalScore() },
-		{ "localPlayer", player }
-	};
 
-	std::string serializedData = game_data.dump();
+	json results;
+	results["score"] = server.GetTotalScore();
+	results["bScore"] = server.GetTeams().Get(0).GetScore();
+	results["oScore"] = server.GetTeams().Get(1).GetScore();
+	results["isOT"] = isOvertime;
+	results["isFF"] = (server.GetbForfeit() == 1);
+	results["isWinner"] = isLocalPlayerWinner(server);
+
+	json match;
+	match["matchId"] = server.GetMatchGUID();
+	match["datetime"] = datetime;
+	match["map"] = getMapName(gameWrapper->GetCurrentMap());
+	match["gamemode"] = getPlaylistString(playlistId);
+	match["results"] = results;
+
+	json players = json::array();
+	getPlayersStats(server.GetPRIs(), players, playlistId);
+	match["players"] = players;
+
+	std::string serializedData = match.dump();
 
 	sendStats(serializedData);
+}
 
+std::string GoalPost::getMapName(std::string internalMap)
+{
+	bool found = false;
+	for (const auto& pair : FreeplayMaps) {
+		if (pair.first == internalMap) {
+			found = true;
+			return pair.second;
+		}
+	}
+
+	if (!found) {
+		return "UNK";
+	}
 }
 
 void GoalPost::ping()
 {
-	LOG("pinging endpoint...");
+	LOG("[GOALPOST] pinging endpoint...");
 	std::string url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
 	std::thread([url]() {
 		try {
 			cpr::Response r = cpr::Get(cpr::Url{ url });
 
-			if (r.status_code == 201)
+			if (r.status_code == 200)
 			{
 				LOG("[SUCCESS] Response code: {}", r.status_code);
 			}
@@ -149,14 +147,79 @@ void GoalPost::ping()
 		}).detach();
 }
 
-bool GoalPost::isFF(ServerWrapper server)
+void GoalPost::onOvertime()
 {
-	bool isWinner = isLocalPlayerWinner(server);
+	LOG("[GOALPOST] GAME IS In Overtime");
+	isOvertime = true;
+}
 
-	long wasForfeit = server.GetbForfeit(); // true if match ended by forfeit
+int getPlayerMMR(UniqueIDWrapper uid, int playlist) {
+	MMRWrapper mw = _globalGameWrapper->GetMMRWrapper();
+	return mw.GetPlayerMMR(uid, playlist);
+}
 
-	
-	return false;
+std::string GoalPost::getPlaylistString(int playlistId)
+{
+	std::string gamemode;
+	switch (playlistId)
+	{
+	case 10:
+		gamemode = "Duel (Ranked)";
+		break;
+	case 11:
+		gamemode = "Doubles (Ranked)";
+		break;
+	case 13:
+		gamemode = "Standard (Ranked)";
+		break;
+	default:
+		gamemode = "Standard";
+		break;
+	}
+	return gamemode;
+}
+
+int getMMR(UniqueIDWrapper uid, int playlist) {
+	if (!_globalGameWrapper) return 0;
+
+	MMRWrapper mw = _globalGameWrapper->GetMMRWrapper();
+	return mw.GetPlayerMMR(uid, playlist);
+}
+
+bool GoalPost::isCompetitiveMatch(ServerWrapper server)
+{
+	if (!server) return false;
+
+	auto playlist = server.GetPlaylist();
+	if (!playlist) return false;
+
+
+	// Check if playlist is competitive
+	int playlistId = playlist.GetPlaylistId();
+
+	return (playlistId == 10 || // 1v1 Ranked
+		playlistId == 11 || // 2v2 Ranked
+		playlistId == 13 // 3v3 Standard
+		);
+}
+
+bool GoalPost::isLocalPlayerWinner(ServerWrapper server)
+{
+
+	PriWrapper localPlayer = server.GetLocalPrimaryPlayer().GetPRI();
+	ArrayWrapper<TeamWrapper> teams = server.GetTeams();
+
+	int myScore = teams.Get(localPlayer.GetTeamNum()).GetScore();
+	int otherScore;
+
+	if (localPlayer.GetTeamNum() == 0) {
+		otherScore = teams.Get(1).GetScore();
+	}
+	else {
+		otherScore = teams.Get(0).GetScore();
+	}
+
+	return myScore > otherScore;
 }
 
 std::string GoalPost::getPlatformString(OnlinePlatform plat)
@@ -184,10 +247,26 @@ std::string GoalPost::getPlatformString(OnlinePlatform plat)
 	return platform;
 }
 
-void GoalPost::onOvertime()
+void GoalPost::getPlayersStats(ArrayWrapper<PriWrapper> pris, json& players, int playlistId)
 {
-	LOG("GAME IS In Overtime");
-	isOvertime = true;
+	for (auto player : pris) {
+		LOG("[GOALPOST] Parsing player: {}", player.GetPlayerName().ToString());
+
+		json p;
+		p["uniqueId"] = player.GetUniqueIdWrapper().GetIdString();
+		p["name"] = player.GetPlayerName().ToString();
+		p["goals"] = player.GetMatchGoals();
+		p["shots"] = player.GetMatchShots();
+		p["saves"] = player.GetMatchSaves();
+		p["assists"] = player.GetMatchAssists();
+		p["demos"] = player.GetKills();
+		p["touches"] = player.GetBallTouches();
+		p["teamNum"] = player.GetTeamNum();
+		p["mmr"] = getMMR(player.GetUniqueIdWrapper(), playlistId);
+		p["platform"] = getPlatformString(player.GetPlatform());
+		// left game stat
+		players.push_back(p);
+	}
 }
 
 void GoalPost::resetFlags()
@@ -197,7 +276,7 @@ void GoalPost::resetFlags()
 
 void GoalPost::sendStats(std::string& data)
 {
-	LOG("Sending stats");
+	LOG("[GOALPOST] Sending stats");
 	std::string url = cvarManager->getCvar("goalpost_endpoint").getStringValue();
 	std::thread([url, data]() {
 		try {
@@ -223,64 +302,6 @@ void GoalPost::sendStats(std::string& data)
 		}
 
 		}).detach();
-}
-
-bool GoalPost::isCompetitiveMatch(ServerWrapper server)
-{
-	if (!server) return false;
-
-	auto playlist = server.GetPlaylist();
-	if (!playlist) return false;
-
-	// Check if playlist is competitive
-	int playlistId = playlist.GetPlaylistId();
-
-	LOG("Game mode ID is {}", playlistId);
-
-	return (playlistId == 10 || // 1v1 Ranked
-		playlistId == 11 || // 2v2 Ranked
-		playlistId == 13 // 3v3 Standard
-		);
-}
-
-std::string GoalPost::getPlaylistString(int playlistId)
-{
-	std::string gamemode;
-	switch (playlistId)
-	{
-	case 10:
-		gamemode = "Duel (Ranked)";
-		break;
-	case 11:
-		gamemode = "Doubles (Ranked)";
-		break;
-	case 13:
-		gamemode = "Standard (Ranked)";
-		break;
-	default:
-		gamemode = "Standard";
-		break;
-	}
-	return gamemode;
-}
-
-bool GoalPost::isLocalPlayerWinner(ServerWrapper server)
-{
-
-	PriWrapper localPlayer = server.GetLocalPrimaryPlayer().GetPRI();
-	ArrayWrapper<TeamWrapper> teams = server.GetTeams();
-
-	int myScore = teams.Get(localPlayer.GetTeamNum()).GetScore();
-	int otherScore;
-
-	if (localPlayer.GetTeamNum() == 0) {
-		otherScore = teams.Get(1).GetScore();
-	}
-	else {
-		otherScore = teams.Get(0).GetScore();
-	}
-
-	return myScore > otherScore;
 }
 
 void GoalPost::onUnload()
