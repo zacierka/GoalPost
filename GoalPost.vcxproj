@@ -118,6 +118,8 @@
     </ClCompile>
     <ClCompile Include="GoalPost.cpp" />
     <ClCompile Include="GuiBase.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="StatsCallback.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imconfig.h" />
@@ -138,6 +140,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="GuiBase.h" />
     <ClInclude Include="GoalPost.h" />
+    <ClInclude Include="Player.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>

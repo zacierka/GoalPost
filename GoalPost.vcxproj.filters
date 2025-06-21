@@ -84,6 +84,12 @@
     <ClCompile Include="GoalPostSettings.cpp">
       <Filter>Plugin\src</Filter>
     </ClCompile>
+    <ClCompile Include="StatsCallback.cpp">
+      <Filter>Plugin\src</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>Plugin\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imgui\imgui_rangeslider.h">
@@ -141,6 +147,9 @@
       <Filter>Plugin\header</Filter>
     </ClInclude>
     <ClInclude Include="GuiBase.h">
+      <Filter>Plugin\header</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
       <Filter>Plugin\header</Filter>
     </ClInclude>
   </ItemGroup>

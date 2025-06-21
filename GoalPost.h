@@ -5,32 +5,25 @@
 #include "bakkesmod/plugin/pluginwindow.h"
 #include "bakkesmod/plugin/PluginSettingsWindow.h"
 #include "version.h"
-
+#include "Player.h"
 #include <nlohmann/json.hpp>
-constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "-" stringify(VERSION_BUILD);
 
+constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
 
 using json = nlohmann::json;
 
 class GoalPost: public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase
 {
 private:
+	bool isInGame = false;
 
-	bool isCompetitiveMatch(ServerWrapper server);
-	bool isLocalPlayerWinner(ServerWrapper server);
+	// void onStatEvent(ServerWrapper caller, void* args);
+	void onStatTickerEvent(ServerWrapper caller, void* args);
 
-	std::string getPlaylistString(int id);
+	bool isLocalPlayer(PriWrapper pri);
+	bool isCompetitiveGame();
 
-	void collectAndSendMatchStats();
-	void sendStats(std::string& data);
-	std::string getMapName(std::string internalMap);
-	void ping();
-	void resetFlags();
-	void onOvertime();
-	std::string getPlatformString(OnlinePlatform platform);
-	void getPlayersStats(ArrayWrapper<PriWrapper> pris, json& players, int playlistId);
-	bool isFF(ServerWrapper server);
-	bool isOvertime = false;
+	std::map<std::string, Player> players;
 public:
 	//void RenderSettings() override; // Uncomment if you wanna render your own tab in the settings menu
 	//void RenderWindow() override; // Uncomment if you want to render your own plugin window
@@ -77,4 +70,16 @@ public:
 		{ "throwbackstadium_P",      "Throwback Stadium" },
 		{ "wasteland_Night_S_P",     "Wasteland (Night)" },
 	};
+
+	struct StatTickerParams {
+		uintptr_t Receiver; // person who got a stat
+		uintptr_t Victim; // person who is victim of a stat (only exists for demos afaik)
+		uintptr_t StatEvent;
+	};
+
+	struct StatEventParams {
+		uintptr_t PRI; // always primary player
+		uintptr_t StatEvent; // wrapper for the stat event
+	};
+
 };
