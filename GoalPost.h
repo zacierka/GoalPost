@@ -1,11 +1,11 @@
 #pragma once
-
+#include "Player.h"
 #include "GuiBase.h"
 #include "bakkesmod/plugin/bakkesmodplugin.h"
 #include "bakkesmod/plugin/pluginwindow.h"
 #include "bakkesmod/plugin/PluginSettingsWindow.h"
 #include "version.h"
-#include "Player.h"
+
 #include <nlohmann/json.hpp>
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
@@ -16,14 +16,19 @@ class GoalPost: public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindow
 {
 private:
 	bool isInGame = false;
-
+	bool isOvertime = false;
 	// void onStatEvent(ServerWrapper caller, void* args);
 	void onStatTickerEvent(ServerWrapper caller, void* args);
 
 	bool isLocalPlayer(PriWrapper pri);
 	bool isCompetitiveGame();
+	std::map<std::string, Player> players = {};
+	std::string getMapName(std::string internalMap);
+	std::string getPlaylistString(int playlistId);
+	void clearFlags();
 
-	std::map<std::string, Player> players;
+	void sendMatchRequest(json& data);
+
 public:
 	//void RenderSettings() override; // Uncomment if you wanna render your own tab in the settings menu
 	//void RenderWindow() override; // Uncomment if you want to render your own plugin window
@@ -69,6 +74,12 @@ public:
 		{ "stadium_day_p",           "DFH Stadium (Day)" },
 		{ "throwbackstadium_P",      "Throwback Stadium" },
 		{ "wasteland_Night_S_P",     "Wasteland (Night)" },
+	};
+
+	const std::map<int, std::string> PlaylistIdToString {
+		{10, "Duel"},
+		{11, "Doubles"},
+		{13, "Standard"},
 	};
 
 	struct StatTickerParams {
